@@ -1,0 +1,27 @@
+name: sdcore-udm
+
+display-name: SD-CORE 5G UDM
+summary: A Charmed Operator for SDCORE's UDM component.
+description: |
+  A Charmed Operator for SDCORE's UDM component.
+
+containers:
+  udm:
+    resource: udm-image
+    mounts:
+      - storage: config
+        location: /etc/udm/
+
+resources:
+  udm-image:
+    type: oci-image
+    description: OCI image for 5G udm
+    upstream-source: omecproject/5gc-udm:master-6956659
+
+storage:
+  config:
+    type: filesystem
+    minimum-size: 1M
+
+assumes:
+  - k8s-api
