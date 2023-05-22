@@ -1,6 +1,6 @@
 # SD-CORE UDM Operator
 
-A Charmed Operator for SDCORE's Unified Data Manager (UDM) component, a configuration service in SD-Core. 
+A Charmed Operator for SDCORE's Unified Data Manager (UDM) component. 
 
 ## Usage
 
