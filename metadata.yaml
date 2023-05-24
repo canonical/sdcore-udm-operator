@@ -1,9 +1,9 @@
 name: sdcore-udm
 
-display-name: SD-CORE 5G UDM
-summary: A Charmed Operator for SDCORE's UDM component.
+display-name: SD-Core 5G UDM
+summary: A Charmed Operator for SD-Core's UDM component.
 description: |
-  A Charmed Operator for SDCORE's Unified Data Manager (UDM) component.
+  A Charmed Operator for SD-Core's Unified Data Manager (UDM) component.
 
 containers:
   udm:
