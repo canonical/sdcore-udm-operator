@@ -10,7 +10,7 @@ import yaml
 from ops import testing
 from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
 
-from charm import BASE_CONFIG_PATH, CONFIG_FILE_NAME, UDMOperatorCharm
+from charm import BASE_CONFIG_PATH, CONFIG_FILE_NAME, NRF_RELATION_NAME, UDMOperatorCharm
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class TestCharm(unittest.TestCase):
             int: relation id.
         """
         relation_id = self.harness.add_relation(
-            relation_name="fiveg_nrf", remote_app="nrf-operator"
+            relation_name=NRF_RELATION_NAME, remote_app="nrf-operator"
         )
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="nrf-operator/0")
         return relation_id
@@ -134,10 +134,10 @@ class TestCharm(unittest.TestCase):
         patched_nrf_url.return_value = VALID_NRF_URL
         self._create_nrf_relation()
         patch_exists.return_value = [True, False]
+        expected_config_file_content = self._read_file(EXPECTED_CONFIG_FILE_PATH)
 
         self.harness.charm._configure_sdcore_udm(event=Mock())
 
-        expected_config_file_content = self._read_file(EXPECTED_CONFIG_FILE_PATH)
         patch_push.assert_called_with(
             path=f"{BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
             source=expected_config_file_content,
@@ -208,10 +208,9 @@ class TestCharm(unittest.TestCase):
         self._create_nrf_relation()
         self.harness.charm._storage_is_attached = Mock(return_value=True)
         patch_exists.return_value = [True, True]
+        expected_config_file_content = self._read_file(EXPECTED_CONFIG_FILE_PATH)
 
         self.harness.charm._configure_sdcore_udm(event=Mock())
-
-        expected_config_file_content = self._read_file(EXPECTED_CONFIG_FILE_PATH)
 
         patch_push.assert_called_with(
             path=f"{BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
@@ -252,7 +251,7 @@ class TestCharm(unittest.TestCase):
     @patch("ops.model.Container.exists")
     @patch("ops.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
-    def test_given_config_file_is_written_when_configure_sdcore_udm_is_called_then_status_is_waiting(  # noqa: E501
+    def test_given_config_file_is_written_when_configure_sdcore_udm_is_called_then_status_is_active(  # noqa: E501
         self,
         patched_nrf_url,
         patch_push,

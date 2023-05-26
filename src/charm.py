@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 BASE_CONFIG_PATH = "/etc/udm"
 CONFIG_FILE_NAME = "udmcfg.yaml"
 UDM_SBI_PORT = 29503
+NRF_RELATION_NAME = "fiveg_nrf"
 
 
 class UDMOperatorCharm(CharmBase):
@@ -38,7 +39,7 @@ class UDMOperatorCharm(CharmBase):
 
         self.framework.observe(self.on.udm_pebble_ready, self._configure_sdcore_udm)
 
-        self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
+        self._nrf_requires = NRFRequires(charm=self, relation_name=NRF_RELATION_NAME)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_sdcore_udm)
 
         self._service_patcher = KubernetesServicePatch(
@@ -89,7 +90,7 @@ class UDMOperatorCharm(CharmBase):
         Returns:
             bool: Whether the NRF relation was created.
         """
-        return bool(self.model.get_relation("fiveg_nrf"))
+        return bool(self.model.get_relation(NRF_RELATION_NAME))
 
     def _nrf_is_available(self) -> bool:
         """Returns whether the NRF endpoint is available.
@@ -197,7 +198,7 @@ class UDMOperatorCharm(CharmBase):
                 "summary": "udm layer",
                 "description": "pebble config layer for udm",
                 "services": {
-                    "udm": {
+                    self._service_name: {
                         "override": "replace",
                         "startup": "enabled",
                         "command": "/free5gc/udm/udm "
