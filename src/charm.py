@@ -113,7 +113,8 @@ class UDMOperatorCharm(CharmBase):
         Writes the config file if it does not exist or
         the content does not match.
 
-        Returns: True if config file was updated, False otherwise.
+        Returns:
+            bool: True if config file was updated, False otherwise.
         """
         content = self._render_config_file(
             nrf_url=self._nrf_requires.nrf_url,
@@ -175,8 +176,11 @@ class UDMOperatorCharm(CharmBase):
     def _config_file_content_matches(self, content: str) -> bool:
         """Returns whether the config file content matches the provided content.
 
+        Args:
+            content (str): Config file content.
+
         Returns:
-            bool: Whether the config file content matches
+            bool: Whether the config file content matches.
         """
         existing_content = self._container.pull(path=f"{BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}")
         return existing_content.read() == content
@@ -186,7 +190,7 @@ class UDMOperatorCharm(CharmBase):
         """Returns pebble layer for the charm.
 
         Returns:
-            Layer: Pebble Layer
+            Layer: Pebble Layer.
         """
         return Layer(
             {
