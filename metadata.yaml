@@ -7,7 +7,7 @@ description: |
 
 containers:
   udm:
-    resource: sdcore-udm-image:
+    resource: sdcore-udm-image
     mounts:
       - storage: config
         location: /etc/udm/
@@ -25,7 +25,7 @@ storage:
 
 requires:
   fiveg_nrf:
-    interface: fiveg-nrf
+    interface: fiveg_nrf
 
 assumes:
   - k8s-api

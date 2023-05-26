@@ -2,7 +2,6 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-# TODO: check todos
 """Charmed operator for the 5G UDM service."""
 
 import logging
@@ -15,7 +14,7 @@ from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ign
 )
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader
-from lightkube.models.core_v1 import ServicePort  # type: ignore[import]
+from lightkube.models.core_v1 import ServicePort
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
@@ -25,7 +24,7 @@ from ops.pebble import Layer
 logger = logging.getLogger(__name__)
 
 BASE_CONFIG_PATH = "/etc/udm"
-CONFIG_FILE_NAME = "udmcfg.conf"
+CONFIG_FILE_NAME = "udmcfg.yaml"
 UDM_SBI_PORT = 29503
 
 
@@ -146,7 +145,7 @@ class UDMOperatorCharm(CharmBase):
             str: Config file content.
         """
         jinja2_env = Environment(loader=FileSystemLoader("src/templates"))
-        template = jinja2_env.get_template(CONFIG_FILE_NAME)
+        template = jinja2_env.get_template("udmcfg.yaml.j2")
         return template.render(
             nrf_url=nrf_url,
             udm_sbi_port=udm_sbi_port,
@@ -160,7 +159,8 @@ class UDMOperatorCharm(CharmBase):
             content (str): Config file content.
         """
         self._container.push(
-            path=f"{BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}", source=content, make_dirs=True # TODO: Do we need make dirs?
+            path=f"{BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
+            source=content,
         )
         logger.info("Pushed: %s to workload.", CONFIG_FILE_NAME)
 
