@@ -1,1 +1,3 @@
 ops
+pydantic
+pytest-interface-tester
