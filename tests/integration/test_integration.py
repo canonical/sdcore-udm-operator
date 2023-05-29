@@ -43,9 +43,7 @@ async def build_and_deploy(ops_test):
     """Build the charm-under-test and deploy it."""
     charm = await ops_test.build_charm(".")
     resources = {
-        f"{APPLICATION_NAME}-image": METADATA["resources"][f"{APPLICATION_NAME}-image"][
-            "upstream-source"
-        ],
+        "udm-image": METADATA["resources"]["udm-image"]["upstream-source"],
     }
     await ops_test.model.deploy(
         charm,

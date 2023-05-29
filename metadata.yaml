@@ -7,13 +7,13 @@ description: |
 
 containers:
   udm:
-    resource: sdcore-udm-image
+    resource: udm-image
     mounts:
       - storage: config
         location: /etc/udm/
 
 resources:
-  sdcore-udm-image:
+  udm-image:
     type: oci-image
     description: OCI image for SD-Core's UDM
     upstream-source: omecproject/5gc-udm:master-6956659
