@@ -55,7 +55,6 @@ class UDMOperatorCharm(CharmBase):
         """
         if not self._container.can_connect():
             self.unit.status = WaitingStatus("Waiting for container to be ready")
-            event.defer()
             return
         if not self._nrf_relation_is_created():
             self.unit.status = BlockedStatus("Waiting for `fiveg_nrf` relation to be created")

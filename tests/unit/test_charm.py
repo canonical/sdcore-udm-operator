@@ -140,7 +140,7 @@ class TestCharm(unittest.TestCase):
 
         patch_push.assert_called_with(
             path=f"{BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
-            source=expected_config_file_content,
+            source=expected_config_file_content.strip(),
         )
 
     @patch("charm.check_output")
@@ -214,7 +214,7 @@ class TestCharm(unittest.TestCase):
 
         patch_push.assert_called_with(
             path=f"{BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
-            source=expected_config_file_content,
+            source=expected_config_file_content.strip(),
         )
 
     @patch("ops.model.Container.restart")
