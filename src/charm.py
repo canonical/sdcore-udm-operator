@@ -119,7 +119,7 @@ class UDMOperatorCharm(CharmBase):
         content = self._render_config_file(
             nrf_url=self._nrf_requires.nrf_url,
             udm_sbi_port=UDM_SBI_PORT,
-            udm_hostname=self._udm_hostname,
+            pod_ip=str(self._get_pod_ip()),
         )
         if not self._config_file_is_written() or not self._config_file_content_matches(
             content=content
@@ -133,14 +133,14 @@ class UDMOperatorCharm(CharmBase):
         *,
         nrf_url: str,
         udm_sbi_port: int,
-        udm_hostname: str,
+        pod_ip: str,
     ) -> str:
         """Renders the config file content.
 
         Args:
             nrf_url (str): NRF URL.
             udm_sbi_port (int): UDM SBI port.
-            udm_hostname (str): UDM URL.
+            pod_ip (str): UDM pod IPv4.
 
         Returns:
             str: Config file content.
@@ -150,7 +150,7 @@ class UDMOperatorCharm(CharmBase):
         return template.render(
             nrf_url=nrf_url,
             udm_sbi_port=udm_sbi_port,
-            udm_hostname=udm_hostname,
+            pod_ip=pod_ip,
         )
 
     def _write_config_file(self, content: str) -> None:
@@ -215,17 +215,13 @@ class UDMOperatorCharm(CharmBase):
             "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
             "GRPC_TRACE": "all",
             "GRPC_VERBOSITY": "debug",
-            "POD_IP": str(self._pod_ip()),
+            "POD_IP": str(self._get_pod_ip()),
             "MANAGED_BY_CONFIG_POD": "true",
         }
 
-    def _pod_ip(self) -> Optional[IPv4Address]:
+    def _get_pod_ip(self) -> Optional[IPv4Address]:
         """Get the IP address of the Kubernetes pod."""
         return IPv4Address(check_output(["unit-get", "private-address"]).decode().strip())
-
-    @property
-    def _udm_hostname(self) -> str:
-        return f"{self.model.app.name}.{self.model.name}.svc.cluster.local"
 
 
 if __name__ == "__main__":
