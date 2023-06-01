@@ -12,14 +12,19 @@
   <h1>SD-Core UDM Operator</h1>
 </div>
 
-A Charmed Operator for SD-Core's Unified Data Manager (UDM) component. 
+A Charmed Operator for SD-Core's Unified Data Manager (UDM) component.
 
 ## Usage
 
 ```bash
-juju deploy sdcore-udm --trust --channel=edge
+juju deploy mongodb-k8s --channel 5/edge --trust
+juju deploy sdcore-nrf --channel edge --trust
+juju deploy sdcore-udm --channel edge --trust
+
+juju integrate sdcore-nrf mongodb-k8s
+juju integrate sdcore-udm:fiveg_nrf sdcore-nrf
 ```
 
 ## Image
 
-- **udm**: `omecproject/5gc-udm:master-6956659`
+**udm**: `omecproject/5gc-udm:master-6956659`

@@ -15,13 +15,17 @@ containers:
 resources:
   udm-image:
     type: oci-image
-    description: OCI image for 5G udm
+    description: OCI image for SD-Core's UDM
     upstream-source: omecproject/5gc-udm:master-6956659
 
 storage:
   config:
     type: filesystem
     minimum-size: 1M
+
+requires:
+  fiveg_nrf:
+    interface: fiveg_nrf
 
 assumes:
   - k8s-api
