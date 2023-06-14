@@ -154,9 +154,9 @@ class TestCharm(unittest.TestCase):
         pod_ip = "1.1.1.1"
         patch_check_output.return_value = pod_ip.encode()
         patch_pull.return_value = StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH))
+        self._create_nrf_relation()
         self.harness.set_can_connect(container=self.container_name, val=True)
         patched_nrf_url.return_value = VALID_NRF_URL
-        self._create_nrf_relation()
         self.harness.charm._storage_is_attached = Mock(return_value=True)
         patch_exists.return_value = [True, True]
 
@@ -182,9 +182,9 @@ class TestCharm(unittest.TestCase):
         pod_ip = "1.1.1.1"
         patch_check_output.return_value = pod_ip.encode()
         patch_pull.return_value = StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH))
+        self._create_nrf_relation()
         self.harness.set_can_connect(container=self.container_name, val=True)
         patched_nrf_url.return_value = VALID_NRF_URL
-        self._create_nrf_relation()
         self.harness.charm._storage_is_attached = Mock(return_value=True)
         patch_exists.return_value = [True, True]
 
@@ -272,3 +272,24 @@ class TestCharm(unittest.TestCase):
         self.harness.charm._configure_sdcore_udm(event=Mock())
 
         self.assertEqual(self.harness.model.unit.status, ActiveStatus())
+
+    @patch("charm.check_output")
+    @patch("ops.model.Container.pull", new=Mock)
+    @patch("ops.model.Container.exists", new=Mock)
+    @patch("ops.Container.push", new=Mock)
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    def test_given_ip_not_available_when_configure_then_status_is_waiting(
+        self,
+        patched_nrf_url,
+        patch_check_output,
+    ):
+        patch_check_output.return_value = "".encode()
+        self._create_nrf_relation()
+        self.harness.charm._storage_is_attached = Mock(return_value=True)
+
+        self.harness.container_pebble_ready(container_name="udm")
+
+        self.assertEqual(
+            self.harness.model.unit.status,
+            WaitingStatus("Waiting for pod IP address to be available"),
+        )
