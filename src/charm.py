@@ -202,8 +202,7 @@ class UDMOperatorCharm(CharmBase):
                     self._service_name: {
                         "override": "replace",
                         "startup": "enabled",
-                        "command": "/bin/udm "
-                        f"--udmcfg {BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
+                        "command": "/bin/udm " f"--udmcfg {BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
                         "environment": self._environment_variables,
                     },
                 },

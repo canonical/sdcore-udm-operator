@@ -251,6 +251,53 @@ class TestCharm(unittest.TestCase):
     @patch("ops.model.Container.exists")
     @patch("ops.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    def test_given_config_file_is_written_when_configure_sdcore_udm_is_called_then_pebble_plan_is_applied(  # noqa: E501
+        self,
+        patched_nrf_url,
+        patch_push,
+        patch_exists,
+        patch_pull,
+        patch_check_output,
+        patch_container_restart,
+    ):
+        pod_ip = "1.1.1.1"
+        patch_check_output.return_value = pod_ip.encode()
+        patch_pull.return_value = StringIO("super different config file content")
+        self.harness.set_can_connect(container=self.container_name, val=True)
+        patched_nrf_url.return_value = VALID_NRF_URL
+        self._create_nrf_relation()
+        self.harness.charm._storage_is_attached = Mock(return_value=True)
+        patch_exists.return_value = [True, False]
+
+        self.harness.charm._configure_sdcore_udm(event=Mock())
+        expected_plan = {
+            "services": {
+                "udm": {
+                    "override": "replace",
+                    "startup": "enabled",
+                    "command": "/bin/udm --udmcfg /etc/udm/udmcfg.yaml",
+                    "environment": {
+                        "GRPC_GO_LOG_VERBOSITY_LEVEL": "99",
+                        "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
+                        "GRPC_TRACE": "all",
+                        "GRPC_VERBOSITY": "debug",
+                        "POD_IP": "1.1.1.1",
+                        "MANAGED_BY_CONFIG_POD": "true",
+                    },
+                }
+            },
+        }
+
+        updated_plan = self.harness.get_container_pebble_plan("udm").to_dict()
+
+        self.assertEqual(expected_plan, updated_plan)
+
+    @patch("ops.model.Container.restart")
+    @patch("charm.check_output")
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    @patch("ops.Container.push")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     def test_given_config_file_is_written_when_configure_sdcore_udm_is_called_then_status_is_active(  # noqa: E501
         self,
         patched_nrf_url,
