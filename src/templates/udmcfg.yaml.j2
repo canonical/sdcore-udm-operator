@@ -9,11 +9,11 @@ configuration:
     bindingIPv4: 0.0.0.0
     port: {{ udm_sbi_port }}
     registerIPv4: {{ pod_ip }}
-    scheme: http
+    scheme: {{ scheme }}
     tls:
-      key: free5gc/support/TLS/udm.key
+      key: {{ tls_key_path }}
       log: free5gc/udmsslkey.log
-      pem: free5gc/support/TLS/udm.pem
+      pem: {{ tls_certificate_path }}
   serviceNameList:
   - nudm-sdm
   - nudm-uecm

@@ -26,12 +26,12 @@ class TestCharm(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
         self.namespace = "whatever"
-        self.default_database_application_name = "mongodb-k8s"
         self.metadata = self._get_metadata()
         self.container_name = list(self.metadata["containers"].keys())[0]
         self.harness = testing.Harness(UDMOperatorCharm)
         self.harness.set_model_name(name=self.namespace)
         self.addCleanup(self.harness.cleanup)
+        self.harness.set_leader(is_leader=True)
         self.harness.begin()
 
     def _get_metadata(self) -> dict:
@@ -133,7 +133,7 @@ class TestCharm(unittest.TestCase):
         self.harness.set_can_connect(container=self.container_name, val=True)
         patched_nrf_url.return_value = VALID_NRF_URL
         self._create_nrf_relation()
-        patch_exists.return_value = [True, False]
+        patch_exists.side_effect = [True, False, False]
         expected_config_file_content = self._read_file(EXPECTED_CONFIG_FILE_PATH)
 
         self.harness.charm._configure_sdcore_udm(event=Mock())
@@ -153,14 +153,15 @@ class TestCharm(unittest.TestCase):
     ):
         pod_ip = "1.1.1.1"
         patch_check_output.return_value = pod_ip.encode()
-        patch_pull.return_value = StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH))
-        self._create_nrf_relation()
-        self.harness.set_can_connect(container=self.container_name, val=True)
+        patch_pull.side_effect = [
+            StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH)),
+            StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH)),
+        ]
         patched_nrf_url.return_value = VALID_NRF_URL
-        self.harness.charm._storage_is_attached = Mock(return_value=True)
-        patch_exists.return_value = [True, True]
+        patch_exists.return_value = False
+        self._create_nrf_relation()
 
-        self.harness.charm._configure_sdcore_udm(event=Mock())
+        self.harness.container_pebble_ready(self.container_name)
 
         patch_push.assert_not_called()
 
@@ -184,9 +185,9 @@ class TestCharm(unittest.TestCase):
         patch_pull.return_value = StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH))
         self._create_nrf_relation()
         self.harness.set_can_connect(container=self.container_name, val=True)
+        patch_exists.side_effect = [False, True]
         patched_nrf_url.return_value = VALID_NRF_URL
         self.harness.charm._storage_is_attached = Mock(return_value=True)
-        patch_exists.return_value = [True, True]
 
         self.harness.charm._configure_sdcore_udm(event=Mock())
 
@@ -207,7 +208,7 @@ class TestCharm(unittest.TestCase):
         patched_nrf_url.return_value = VALID_NRF_URL
         self._create_nrf_relation()
         self.harness.charm._storage_is_attached = Mock(return_value=True)
-        patch_exists.return_value = [True, True]
+        patch_exists.side_effect = [False, True]
         expected_config_file_content = self._read_file(EXPECTED_CONFIG_FILE_PATH)
 
         self.harness.charm._configure_sdcore_udm(event=Mock())
@@ -239,7 +240,7 @@ class TestCharm(unittest.TestCase):
         patched_nrf_url.return_value = VALID_NRF_URL
         self._create_nrf_relation()
         self.harness.charm._storage_is_attached = Mock(return_value=True)
-        patch_exists.return_value = [True, True]
+        patch_exists.return_value = True
 
         self.harness.charm._configure_sdcore_udm(event=Mock())
 
@@ -314,7 +315,7 @@ class TestCharm(unittest.TestCase):
         patched_nrf_url.return_value = VALID_NRF_URL
         self._create_nrf_relation()
         self.harness.charm._storage_is_attached = Mock(return_value=True)
-        patch_exists.return_value = [True, False]
+        patch_exists.side_effect = [True, False]
 
         self.harness.charm._configure_sdcore_udm(event=Mock())
 
@@ -340,3 +341,159 @@ class TestCharm(unittest.TestCase):
             self.harness.model.unit.status,
             WaitingStatus("Waiting for pod IP address to be available"),
         )
+
+    @patch("charm.generate_private_key")
+    @patch("ops.model.Container.push")
+    def test_given_can_connect_when_on_certificates_relation_created_then_private_key_is_generated(
+        self, patch_push, patch_generate_private_key
+    ):
+        private_key = b"whatever key content"
+        self.harness.set_can_connect(container="udm", val=True)
+        patch_generate_private_key.return_value = private_key
+
+        self.harness.charm._on_certificates_relation_created(event=Mock)
+
+        patch_push.assert_called_with(path="/support/TLS/udm.key", source=private_key.decode())
+
+    @patch("ops.model.Container.remove_path")
+    @patch("ops.model.Container.exists")
+    def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
+        self, patch_exists, patch_remove_path
+    ):
+        patch_exists.return_value = True
+        self.harness.set_can_connect(container="udm", val=True)
+
+        self.harness.charm._on_certificates_relation_broken(event=Mock)
+
+        patch_remove_path.assert_any_call(path="/support/TLS/udm.pem")
+        patch_remove_path.assert_any_call(path="/support/TLS/udm.key")
+        patch_remove_path.assert_any_call(path="/support/TLS/udm.csr")
+
+    @patch(
+        "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
+        new=Mock,
+    )
+    @patch("ops.model.Container.push")
+    @patch("charm.generate_csr")
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    def test_given_private_key_exists_when_on_certificates_relation_joined_then_csr_is_generated(
+        self, patch_exists, patch_pull, patch_generate_csr, patch_push
+    ):
+        csr = b"whatever csr content"
+        patch_generate_csr.return_value = csr
+        patch_pull.return_value = StringIO("private key content")
+        patch_exists.return_value = True
+        self.harness.set_can_connect(container="udm", val=True)
+
+        self.harness.charm._on_certificates_relation_joined(event=Mock)
+
+        patch_push.assert_called_with(path="/support/TLS/udm.csr", source=csr.decode())
+
+    @patch(
+        "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
+    )
+    @patch("ops.model.Container.push", new=Mock)
+    @patch("charm.generate_csr")
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    def test_given_private_key_exists_when_on_certificates_relation_joined_then_cert_is_requested(
+        self,
+        patch_exists,
+        patch_pull,
+        patch_generate_csr,
+        patch_request_certificate_creation,
+    ):
+        csr = b"whatever csr content"
+        patch_generate_csr.return_value = csr
+        patch_pull.return_value = StringIO("private key content")
+        patch_exists.return_value = True
+        self.harness.set_can_connect(container="udm", val=True)
+
+        self.harness.charm._on_certificates_relation_joined(event=Mock)
+
+        patch_request_certificate_creation.assert_called_with(certificate_signing_request=csr)
+
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    @patch("ops.model.Container.push")
+    def test_given_csr_matches_stored_one_when_certificate_available_then_certificate_is_pushed(
+        self,
+        patch_push,
+        patch_exists,
+        patch_pull,
+    ):
+        csr = "Whatever CSR content"
+        patch_pull.return_value = StringIO(csr)
+        patch_exists.return_value = True
+        certificate = "Whatever certificate content"
+        event = Mock()
+        event.certificate = certificate
+        event.certificate_signing_request = csr
+        self.harness.set_can_connect(container="udm", val=True)
+
+        self.harness.charm._on_certificate_available(event=event)
+
+        patch_push.assert_called_with(path="/support/TLS/udm.pem", source=certificate)
+
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    @patch("ops.model.Container.push")
+    def test_given_csr_doesnt_match_stored_one_when_certificate_available_then_certificate_is_not_pushed(  # noqa: E501
+        self,
+        patch_push,
+        patch_exists,
+        patch_pull,
+    ):
+        patch_pull.return_value = StringIO("Stored CSR content")
+        patch_exists.return_value = True
+        certificate = "Whatever certificate content"
+        event = Mock()
+        event.certificate = certificate
+        event.certificate_signing_request = "Relation CSR content (different from stored one)"
+        self.harness.set_can_connect(container="udm", val=True)
+
+        self.harness.charm._on_certificate_available(event=event)
+
+        patch_push.assert_not_called()
+
+    @patch(
+        "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
+    )
+    @patch("ops.model.Container.push", new=Mock)
+    @patch("charm.generate_csr")
+    @patch("ops.model.Container.pull")
+    def test_given_certificate_does_not_match_stored_one_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
+        self, patch_pull, patch_generate_csr, patch_request_certificate_creation
+    ):
+        event = Mock()
+        patch_pull.return_value = StringIO("Stored certificate content")
+        event.certificate = "Relation certificate content (different from stored)"
+        csr = b"whatever csr content"
+        patch_generate_csr.return_value = csr
+        self.harness.set_can_connect(container="udm", val=True)
+
+        self.harness.charm._on_certificate_expiring(event=event)
+
+        patch_request_certificate_creation.assert_not_called()
+
+    @patch(
+        "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
+    )
+    @patch("ops.model.Container.push", new=Mock)
+    @patch("charm.generate_csr")
+    @patch("ops.model.Container.pull")
+    def test_given_certificate_matches_stored_one_when_certificate_expiring_then_certificate_is_requested(  # noqa: E501
+        self, patch_pull, patch_generate_csr, patch_request_certificate_creation
+    ):
+        certificate = "whatever certificate content"
+        event = Mock()
+        event.certificate = certificate
+        patch_pull.return_value = StringIO(certificate)
+        csr = b"whatever csr content"
+        patch_generate_csr.return_value = csr
+        self.harness.set_can_connect(container="udm", val=True)
+
+        self.harness.charm._on_certificate_expiring(event=event)
+
+        patch_request_certificate_creation.assert_called_with(certificate_signing_request=csr)
