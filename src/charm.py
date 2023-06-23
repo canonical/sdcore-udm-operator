@@ -285,8 +285,6 @@ class UDMOperatorCharm(CharmBase):
             udm_sbi_port=UDM_SBI_PORT,
             pod_ip=_get_pod_ip(),  # type: ignore[arg-type]
             scheme="https" if self._certificate_is_stored() else "http",
-            tls_key_path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}",
-            tls_certificate_path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}",
         )
         if not self._config_file_is_written() or not self._config_file_content_matches(
             content=content
@@ -302,8 +300,6 @@ class UDMOperatorCharm(CharmBase):
         udm_sbi_port: int,
         pod_ip: str,
         scheme: str,
-        tls_key_path: str,
-        tls_certificate_path: str,
     ) -> str:
         """Renders the config file content.
 
@@ -312,8 +308,6 @@ class UDMOperatorCharm(CharmBase):
             udm_sbi_port (int): UDM SBI port.
             pod_ip (str): UDM pod IPv4.
             scheme (str): SBI interface scheme ("http" or "https")
-            tls_key_path (str): TLS private key path
-            tls_certificate_path (str): TLS certificate path
 
         Returns:
             str: Config file content.
@@ -325,8 +319,6 @@ class UDMOperatorCharm(CharmBase):
             udm_sbi_port=udm_sbi_port,
             pod_ip=pod_ip,
             scheme=scheme,
-            tls_key_path=tls_key_path,
-            tls_certificate_path=tls_certificate_path,
         )
 
     def _write_config_file(self, content: str) -> None:
@@ -376,7 +368,7 @@ class UDMOperatorCharm(CharmBase):
                     self._service_name: {
                         "override": "replace",
                         "startup": "enabled",
-                        "command": "/bin/udm " f"--udmcfg {BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
+                        "command": f"/bin/udm --udmcfg {BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}",
                         "environment": self._environment_variables,
                     },
                 },
