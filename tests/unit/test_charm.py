@@ -159,7 +159,7 @@ class TestCharm(unittest.TestCase):
         patch_exists.side_effect = [False, True]
         self._create_nrf_relation()
 
-        self.harness.container_pebble_ready(self.container_name)
+        self.harness.charm._configure_sdcore_udm(event=Mock())
 
         patch_push.assert_not_called()
 
