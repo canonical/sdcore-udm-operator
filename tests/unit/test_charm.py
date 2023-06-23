@@ -153,12 +153,10 @@ class TestCharm(unittest.TestCase):
     ):
         pod_ip = "1.1.1.1"
         patch_check_output.return_value = pod_ip.encode()
-        patch_pull.side_effect = [
-            StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH)),
-            StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH)),
-        ]
+        patch_pull.return_value = StringIO(self._read_file(EXPECTED_CONFIG_FILE_PATH))
         patched_nrf_url.return_value = VALID_NRF_URL
-        patch_exists.return_value = False
+        self.harness.charm._storage_is_attached = Mock(return_value=True)
+        patch_exists.side_effect = [False, True]
         self._create_nrf_relation()
 
         self.harness.container_pebble_ready(self.container_name)
