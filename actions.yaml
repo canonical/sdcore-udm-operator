@@ -1,0 +1,2 @@
+get-profile-a-home-network-public-key:
+  description: Returns the public key for Profile A Home Network.
