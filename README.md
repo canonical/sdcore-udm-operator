@@ -32,9 +32,9 @@ juju deploy self-signed-certificates --channel=edge
 juju integrate sdcore-udm:certificates self-signed-certificates:certificates
 ```
 
-## Get the Profile A Home Network Public Key
+## Get the Home Network Public Key
 ```bash
-juju run sdcore-udm/leader get-profile-a-home-network-public-key
+juju run sdcore-udm/leader get-home-network-public-key
 ```
 
 ## Image

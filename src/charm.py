@@ -30,13 +30,15 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
 from ops.pebble import Layer
 
+from key_gen_utils import generate_x25519_private_key
+
 logger = logging.getLogger(__name__)
 
 BASE_CONFIG_PATH = "/etc/udm"
 CONFIG_FILE_NAME = "udmcfg.yaml"
 UDM_SBI_PORT = 29503
 NRF_RELATION_NAME = "fiveg_nrf"
-HOME_NETWORK_KEY_NAME = "home_network_key.key"
+HOME_NETWORK_KEY_NAME = "home_network.key"
 HOME_NETWORK_KEY_PATH = f"/etc/udm/{HOME_NETWORK_KEY_NAME}"
 CERTS_DIR_PATH = "/support/TLS"  # Certificate paths are hardcoded in UDM code
 PRIVATE_KEY_NAME = "udm.key"
@@ -80,8 +82,8 @@ class UDMOperatorCharm(CharmBase):
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
         self.framework.observe(
-            self.on.get_profile_a_home_network_public_key_action,
-            self._on_get_profile_a_home_network_public_key_action,
+            self.on.get_home_network_public_key_action,
+            self._on_get_home_network_public_key_action,
         )
 
     def _on_install(self, event: EventBase) -> None:
@@ -94,7 +96,7 @@ class UDMOperatorCharm(CharmBase):
             self.unit.status = WaitingStatus("Waiting for container to be ready")
             event.defer()
             return
-        self._generate_profile_a_home_network_private_key()
+        self._generate_home_network_private_key()
 
     def _configure_sdcore_udm(self, event: EventBase) -> None:
         """Adds Pebble layer and manages Juju unit status.
@@ -119,7 +121,7 @@ class UDMOperatorCharm(CharmBase):
             self.unit.status = WaitingStatus("Waiting for pod IP address to be available")
             event.defer()
             return
-        if not self._profile_a_home_network_private_key_stored():
+        if not self._home_network_private_key_stored():
             self.unit.status = WaitingStatus(
                 "Waiting for home network private key to be available"
             )
@@ -312,7 +314,7 @@ class UDMOperatorCharm(CharmBase):
             udm_sbi_port=UDM_SBI_PORT,
             pod_ip=_get_pod_ip(),  # type: ignore[arg-type]
             scheme="https" if self._certificate_is_stored() else "http",
-            profile_a_home_network_private_key=self._get_profile_a_home_network_private_key,  # type: ignore[arg-type] # noqa: E501
+            _home_network_private_key=self._get_home_network_private_key(),  # type: ignore[arg-type] # noqa: E501
         )
         if not self._config_file_is_written() or not self._config_file_content_matches(
             content=content
@@ -328,7 +330,7 @@ class UDMOperatorCharm(CharmBase):
         udm_sbi_port: int,
         pod_ip: str,
         scheme: str,
-        profile_a_home_network_private_key: str,
+        _home_network_private_key: str,
     ) -> str:
         """Renders the config file content.
 
@@ -348,7 +350,7 @@ class UDMOperatorCharm(CharmBase):
             udm_sbi_port=udm_sbi_port,
             pod_ip=pod_ip,
             scheme=scheme,
-            profile_a_home_network_private_key=profile_a_home_network_private_key,
+            _home_network_private_key=_home_network_private_key,
         )
 
     def _write_config_file(self, content: str) -> None:
@@ -383,57 +385,51 @@ class UDMOperatorCharm(CharmBase):
         existing_content = self._container.pull(path=f"{BASE_CONFIG_PATH}/{CONFIG_FILE_NAME}")
         return existing_content.read() == content
 
-    def _on_get_profile_a_home_network_public_key_action(self, event: ActionEvent) -> None:
+    def _on_get_home_network_public_key_action(self, event: ActionEvent) -> None:
         if not self._container.can_connect():
             event.fail(message="Container is not ready yet.")
             return
-        if not self._profile_a_home_network_private_key_stored():
+        if not self._home_network_private_key_stored():
             event.fail(message="Home network private key is not stored yet.")
             return
         event.set_results(
             {
-                "public-key": self._get_profile_a_home_network_public_key(),  # type: ignore[arg-type] # noqa: E501
+                "public-key": self._get_home_network_public_key(),  # type: ignore[arg-type] # noqa: E501
             }
         )
 
-    def _generate_profile_a_home_network_private_key(self) -> None:
-        """Generates and stores profile A Home Network private key on the container."""
-        private_key = X25519PrivateKey.generate()
-        private_bytes = private_key.private_bytes(
-            encoding=serialization.Encoding.Raw,
-            format=serialization.PrivateFormat.Raw,
-            encryption_algorithm=serialization.NoEncryption(),
-        )
-        private_key_string = private_bytes.hex()
+    def _generate_home_network_private_key(self) -> None:
+        """Generates and stores Home Network private key on the container."""
+        private_key_string = generate_x25519_private_key()
         self._container.push(
             path=f"{HOME_NETWORK_KEY_PATH}",
             source=private_key_string,
         )
         logger.info("Pushed home network private key to workload")
 
-    def _profile_a_home_network_private_key_stored(self) -> bool:
-        """Returns whether the profile A Home Network private key is stored.
+    def _home_network_private_key_stored(self) -> bool:
+        """Returns whether the Home Network private key is stored.
 
         Returns:
             bool: Whether the key is stored on the container.
         """
         return self._container.exists(path=f"{HOME_NETWORK_KEY_PATH}")
 
-    def _get_profile_a_home_network_private_key(self) -> str:
-        """Gets the profile A Home Network private key from the container.
+    def _get_home_network_private_key(self) -> str:
+        """Gets the Home Network private key from the container.
 
         Returns:
-            str: The profile A Home Network private key in hexadecimal.
+            str: The Home Network private key in hexadecimal.
         """
         return str(self._container.pull(path=f"{HOME_NETWORK_KEY_PATH}").read())
 
-    def _get_profile_a_home_network_public_key(self) -> str:
-        """Calculates the profile A Home Network public key from the private key.
+    def _get_home_network_public_key(self) -> str:
+        """Calculates the Home Network public key from the private key.
 
         Returns:
-            str: The profile A Home Network public key in hexadecimal.
+            str: The Home Network public key in hexadecimal.
         """
-        private_key_string = self._get_profile_a_home_network_private_key()
+        private_key_string = self._get_home_network_private_key()
         private_bytes = bytes.fromhex(private_key_string)  # type: ignore[arg-type]
         private_key = X25519PrivateKey.from_private_bytes(private_bytes)
         public_key = private_key.public_key()

@@ -111,7 +111,7 @@ class TestCharm(unittest.TestCase):
         self.harness.charm._on_install(event=Mock())
         private_key_string = self._get_home_network_private_key_as_hexa_string()
         patch_push.assert_called_with(
-            path="/etc/udm/home_network_key.key",
+            path="/etc/udm/home_network.key",
             source=private_key_string,
         )
 
@@ -191,21 +191,21 @@ class TestCharm(unittest.TestCase):
     @patch("ops.model.Container.exists")
     @patch("ops.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
-    @patch(
-        "charm.UDMOperatorCharm._get_profile_a_home_network_private_key", new_callable=PropertyMock
-    )
     def test_given_config_file_is_not_written_when_configure_sdcore_udm_is_called_then_config_file_is_written_with_expected_content(  # noqa: E501
         self,
-        patched_profile_a_home_network_private_key,
         patched_nrf_url,
         patch_push,
         patch_exists,
         patch_pull,
         patch_check_output,
     ):
-        patched_profile_a_home_network_private_key.return_value = "whatever private key"
         pod_ip = "1.1.1.1"
         patch_check_output.return_value = pod_ip.encode()
+        patch_pull.side_effect = [
+            StringIO("whatever private key"),
+            StringIO("whatever private key"),
+            StringIO("whatever private key"),
+        ]
         self.harness.set_can_connect(container=self.container_name, val=True)
         patched_nrf_url.return_value = VALID_NRF_URL
         self._create_nrf_relation()
@@ -272,12 +272,8 @@ class TestCharm(unittest.TestCase):
     @patch("ops.model.Container.exists")
     @patch("ops.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
-    @patch(
-        "charm.UDMOperatorCharm._get_profile_a_home_network_private_key", new_callable=PropertyMock
-    )
     def test_given_config_file_is_written_and_is_changed_when_configure_sdcore_udm_is_called_then_config_file_is_written(  # noqa: E501
         self,
-        patched_profile_a_home_network_private_key,
         patched_nrf_url,
         patch_push,
         patch_exists,
@@ -285,11 +281,15 @@ class TestCharm(unittest.TestCase):
         patch_check_output,
     ):
         pod_ip = "1.1.1.1"
-        patched_profile_a_home_network_private_key.return_value = "whatever private key"
         self.harness.charm._storage_is_attached = Mock(return_value=True)
         patch_exists.side_effect = [True, False, True, False]
         patch_check_output.return_value = pod_ip.encode()
-        patch_pull.return_value = StringIO("super different config file content")
+        patch_pull.side_effect = [
+            StringIO("whatever private key"),
+            StringIO("super different config file content"),
+            StringIO("whatever private key"),
+            StringIO("super different config file content"),
+        ]
         self.harness.set_can_connect(container=self.container_name, val=True)
         patched_nrf_url.return_value = VALID_NRF_URL
         self._create_nrf_relation()
@@ -588,7 +588,7 @@ class TestCharm(unittest.TestCase):
         self.harness.set_can_connect(container=self.container_name, val=False)
 
         event = Mock()
-        self.harness.charm._on_get_profile_a_home_network_public_key_action(event=event)
+        self.harness.charm._on_get_home_network_public_key_action(event=event)
 
         event.fail.assert_called_with(message="Container is not ready yet.")
 
@@ -597,7 +597,7 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.set_can_connect(container=self.container_name, val=True)
         event = Mock()
-        self.harness.charm._on_get_profile_a_home_network_public_key_action(event=event)
+        self.harness.charm._on_get_home_network_public_key_action(event=event)
 
         event.fail.assert_called_with(message="Home network private key is not stored yet.")
 
@@ -610,6 +610,6 @@ class TestCharm(unittest.TestCase):
         patch_exists.return_value = True
         self.harness.set_can_connect(container=self.container_name, val=True)
         event = Mock()
-        self.harness.charm._on_get_profile_a_home_network_public_key_action(event=event)
+        self.harness.charm._on_get_home_network_public_key_action(event=event)
         expected_public_key = self._get_home_network_public_key_as_hexa_string()
         event.set_results.assert_called_with({"public-key": expected_public_key})
